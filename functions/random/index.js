@@ -90,7 +90,7 @@ export async function onRequest(context) {
     }
 
     // 调用randomFileList接口，读取KV数据库中的所有记录
-    let allRecords = await getRandomFileList(context, requestUrl, dir);
+    let allRecords = await getRandomFileList(context, dir);
 
     // 筛选出符合fileType要求的记录
     allRecords = allRecords.filter(item => { return fileType.some(type => item.FileType?.includes(type)) });
@@ -172,18 +172,13 @@ export async function onRequest(context) {
     }
 }
 
-async function getRandomFileList(context, url, dir) {
-    // 检查缓存中是否有记录，有则直接返回
-    const cache = caches.default;
-    const cacheRes = await cache.match(`${url.origin}/api/randomFileList?dir=${dir}`);
-    if (cacheRes) {
-        return JSON.parse(await cacheRes.text());
-    }
-
+async function getRandomFileList(context, dir) {
+    // 临时关闭 caches 缓存，用于验证“新上传文件进不了随机池”是否由旧的24h缓存快照引起。
+    // 每次随机都实时读取索引，新上传/删除会立即进入随机池。
     let allRecords = await readIndex(context, { directory: dir, count: -1, includeSubdirFiles: true, accessStatus: 'normal' });
 
     // 仅保留记录的name和metadata中的必要字段
-    allRecords = allRecords.files?.map(item => {
+    return (allRecords.files || []).map(item => {
         return {
             name: item.id,
             FileType: item.metadata?.FileType,
@@ -191,15 +186,4 @@ async function getRandomFileList(context, url, dir) {
             Height: item.metadata?.Height
         }
     });
-
-    // 缓存结果，缓存时间为24小时
-    await cache.put(`${url.origin}/api/randomFileList?dir=${dir}`, new Response(JSON.stringify(allRecords), {
-        headers: {
-            "Content-Type": "application/json",
-        }
-    }), {
-        expirationTtl: 24 * 60 * 60
-    });
-    
-    return allRecords;
 }

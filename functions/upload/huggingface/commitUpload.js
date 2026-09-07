@@ -7,7 +7,7 @@
 import { HuggingFaceAPI } from '../../utils/storage/huggingfaceAPI.js';
 import { fetchPageConfig, fetchUploadConfig } from '../../utils/sysConfig.js';
 import { getDatabase } from '../../utils/databaseAdapter.js';
-import { moderateContent, endUpload, getUploadIp, getIPAddress, sanitizeUploadFolder, createResponse } from '../uploadTools.js';
+import { moderateContent, endUpload, getUploadIp, getIPAddress, sanitizeUploadFolder, createResponse, resolveFileType } from '../uploadTools.js';
 import { userAuthCheck, UnauthorizedResponse } from '../../utils/auth/userAuth.js';
 
 export async function onRequestPost(context) {
@@ -97,7 +97,7 @@ export async function onRequestPost(context) {
         // 构建 metadata
         const metadata = {
             FileName: fileName || fullId,
-            FileType: fileType || '',
+            FileType: resolveFileType(fileName, fileType),
             Channel: "HuggingFace",
             ChannelName: hfChannel.name || "HuggingFace_env",
             FileSize: (fileSize / 1024 / 1024).toFixed(2),

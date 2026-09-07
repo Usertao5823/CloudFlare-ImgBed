@@ -1,5 +1,5 @@
 /* ========== 分块合并处理 ========== */
-import { createResponse, getUploadIp, getIPAddress, selectConsistentChannel, buildUniqueFileId, endUpload, sanitizeUploadFolder } from './uploadTools';
+import { createResponse, getUploadIp, getIPAddress, selectConsistentChannel, buildUniqueFileId, endUpload, sanitizeUploadFolder, resolveFileType } from './uploadTools';
 import { retryFailedChunks, cleanupFailedMultipartUploads, checkChunkUploadStatuses, cleanupChunkData, cleanupUploadSession } from './chunkUpload';
 import { S3Client, CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { getDatabase } from '../utils/databaseAdapter.js';
@@ -162,7 +162,7 @@ async function handleChannelBasedMerge(context, uploadId, totalChunks, originalF
         // 构建基础metadata
         const metadata = {
             FileName: originalFileName,
-            FileType: originalFileType,
+            FileType: resolveFileType(originalFileName, originalFileType),
             FileSize: '0', // 会在最终合并后更新
             UploadIP: uploadIp,
             UploadAddress: await getIPAddress(env, uploadIp, context.securityConfig),

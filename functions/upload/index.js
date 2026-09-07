@@ -1,7 +1,7 @@
 import { userAuthCheck, UnauthorizedResponse } from "../utils/auth/userAuth";
 import { fetchUploadConfig, fetchSecurityConfig, fetchPageConfig } from "../utils/sysConfig";
 import {
-    createResponse, getUploadIp, getIPAddress, resolveFileExt,
+    createResponse, getUploadIp, getIPAddress, resolveFileExt, resolveFileType,
     moderateContent, purgeCDNCache, isBlockedUploadIp, buildUniqueFileId, endUpload, getImageDimensions,
     sanitizeUploadFolder
 } from "./uploadTools";
@@ -133,8 +133,9 @@ async function processFileUpload(context, formdata = null) {
     // 获取文件信息
     const time = new Date().getTime();
     const file = formdata.get('file');
-    const fileType = file.type;
     let fileName = file.name;
+    // 优先用客户端声明的 MIME；若为空或 octet-stream，则按扩展名推断真实类型
+    let fileType = resolveFileType(fileName, file.type);
     const fileSizeBytes = file.size; // 文件大小，单位字节
     const fileSize = (fileSizeBytes / 1024 / 1024).toFixed(2); // 文件大小，单位MB
 

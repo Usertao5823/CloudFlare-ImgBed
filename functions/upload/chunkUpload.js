@@ -1,5 +1,5 @@
 /* ======= 客户端分块上传处理 ======= */
-import { createResponse, selectConsistentChannel, getUploadIp, getIPAddress, buildUniqueFileId, endUpload } from './uploadTools';
+import { createResponse, selectConsistentChannel, getUploadIp, getIPAddress, buildUniqueFileId, endUpload, resolveFileType } from './uploadTools';
 import { TelegramAPI } from '../utils/storage/telegramAPI';
 import { DiscordAPI } from '../utils/storage/discordAPI';
 import { S3Client, CreateMultipartUploadCommand, UploadPartCommand, AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
@@ -16,7 +16,9 @@ export async function initializeChunkedUpload(context) {
         const formdata = await request.formData();
 
         const originalFileName = formdata.get('originalFileName');
-        const originalFileType = formdata.get('originalFileType');
+        let originalFileType = formdata.get('originalFileType');
+        // 优先用客户端声明的 MIME；若为空或 octet-stream，则按扩展名推断真实类型
+        originalFileType = resolveFileType(originalFileName, originalFileType);
         const totalChunks = parseInt(formdata.get('totalChunks'));
 
         if (!originalFileName || !originalFileType || !totalChunks) {
@@ -97,7 +99,9 @@ export async function handleChunkUpload(context) {
         const totalChunks = parseInt(formdata.get('totalChunks'));
         const uploadId = formdata.get('uploadId');
         const originalFileName = formdata.get('originalFileName');
-        const originalFileType = formdata.get('originalFileType');
+        let originalFileType = formdata.get('originalFileType');
+        // 优先用客户端声明的 MIME；若为空或 octet-stream，则按扩展名推断真实类型
+        originalFileType = resolveFileType(originalFileName, originalFileType);
 
         if (!chunk || chunkIndex === null || !totalChunks || !uploadId || !originalFileName || !originalFileType) {
             return createResponse('Error: Missing chunk upload parameters', { status: 400 });

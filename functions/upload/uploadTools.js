@@ -199,7 +199,49 @@ export function resolveFileExt(fileName, fileType = 'application/octet-stream') 
     return 'bin';
 }
 
+/**
+ * 常见扩展名 -> MIME 类型映射表（用于根据文件名推断真实 MIME）
+ */
+const EXT_MIME_MAP = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+    webp: 'image/webp', bmp: 'image/bmp', avif: 'image/avif', svg: 'image/svg+xml', ico: 'image/x-icon',
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mkv: 'video/x-matroska',
+    mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac', ogg: 'audio/ogg', aac: 'audio/aac', m4a: 'audio/mp4',
+    pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', html: 'text/html', css: 'text/css',
+    json: 'application/json', xml: 'application/xml', zip: 'application/zip',
+    rar: 'application/x-rar-compressed', '7z': 'application/x-7z-compressed',
+    doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
 
+/**
+ * 根据文件扩展名推断 MIME 类型
+ * @param {string} fileName - 文件名（可含路径）
+ * @returns {string} 推断的 MIME；无法推断时返回 ''
+ */
+export function extToMime(fileName) {
+    if (!fileName) return '';
+    const base = String(fileName).split(/[\\/]/).pop();
+    const ext = base.split('.').pop().toLowerCase();
+    if (!ext || ext === base.toLowerCase()) return '';
+    return EXT_MIME_MAP[ext] || '';
+}
+
+/**
+ * 决定文件的 MIME：优先信任客户端声明的具体类型；若为空或笼统的 octet-stream，
+ * 则按文件名扩展名补全真实类型。避免随机接口等按 FileType 过滤时把文件排除。
+ * @param {string} fileName - 文件名
+ * @param {string} declaredMime - 客户端/表单声明的 MIME
+ * @returns {string} 最终 MIME
+ */
+export function resolveFileType(fileName, declaredMime = '') {
+    const mime = (declaredMime || '').trim().toLowerCase();
+    if (mime && mime !== 'application/octet-stream') {
+        return mime;
+    }
+    return extToMime(fileName) || 'application/octet-stream';
+}
 
 /**
  * 从图片文件头部提取尺寸信息

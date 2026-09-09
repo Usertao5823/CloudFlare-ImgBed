@@ -54,6 +54,25 @@ export const FILE_CACHE_CONTROL = {
     NO_STORE: 'private, no-store, max-age=0',
 };
 
+// 常见扩展名 -> MIME（metadata.FileType 缺失或为 octet-stream 时回退推断 Content-Type）
+const MIME_BY_EXTENSION = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', jpe: 'image/jpeg', png: 'image/png',
+    gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', avif: 'image/avif',
+    svg: 'image/svg+xml', ico: 'image/x-icon',
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mkv: 'video/x-matroska', avi: 'video/x-msvideo',
+    mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac', ogg: 'audio/ogg', aac: 'audio/aac', m4a: 'audio/mp4',
+    pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', html: 'text/html', css: 'text/css',
+    json: 'application/json', xml: 'application/xml', zip: 'application/zip',
+};
+
+function inferContentTypeFromName(fileName) {
+    if (!fileName) return '';
+    const base = String(fileName).split(/[\\/]/).pop();
+    const ext = base.split('.').pop().toLowerCase();
+    if (!ext || ext === base.toLowerCase()) return '';
+    return MIME_BY_EXTENSION[ext] || '';
+}
+
 // 公共响应头设置函数
 export function setCommonHeaders(headers, encodedFileName, fileType, cacheControl = FILE_CACHE_CONTROL.PUBLIC) {
     headers.set('Content-Disposition', `inline; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`);
@@ -61,8 +80,14 @@ export function setCommonHeaders(headers, encodedFileName, fileType, cacheContro
     headers.set('Accept-Ranges', 'bytes');
     headers.set('Vary', 'Range');
 
-    if (fileType) {
-        headers.set('Content-Type', fileType);
+    // metadata 的 FileType 为空或笼统的 application/octet-stream 时，回退按文件名扩展名推断，
+    // 保证图片/媒体以正确的 Content-Type 返回；否则 Cloudflare Image Resizing 回源会因
+    // octet-stream 判定“非图片”而拒绝生成缩略图。
+    const contentType = (!fileType || fileType === 'application/octet-stream')
+        ? (inferContentTypeFromName(encodedFileName) || fileType)
+        : fileType;
+    if (contentType) {
+        headers.set('Content-Type', contentType);
     }
 
     headers.set('Cache-Control', cacheControl || FILE_CACHE_CONTROL.PUBLIC);

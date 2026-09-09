@@ -115,7 +115,11 @@ export function validateImageTransformSource(imageTransform, env, fileType, file
     }
 
     const metadataType = normalizeContentType(fileType);
-    const inferredType = metadataType || inferImageTypeFromFileName(fileName);
+    // metadata 是可识别图片类型则优先；否则回退按文件名扩展名推断
+    // （历史数据中很多图片的 FileType 被记成了 application/octet-stream）
+    const inferredType = (metadataType && OUTPUT_FORMATS.has(metadataType))
+        ? metadataType
+        : (inferImageTypeFromFileName(fileName) || metadataType);
     if (!inferredType || canTransformImageType(env, inferredType)) {
         return null;
     }

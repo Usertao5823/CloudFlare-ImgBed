@@ -474,22 +474,11 @@ async function uploadFileToTelegram(context, fullId, metadata, fileExt, fileName
         return await uploadLargeFileToTelegram(context, file, fullId, metadata, fileName, fileType, returnLink, tgBotToken, tgChatId, tgChannel);
     }
 
-    // 由于TG会把gif后缀的文件转为视频，所以需要修改后缀名绕过限制
-    if (fileExt === 'gif') {
-        const newFileName = fileName.replace(/\.gif$/, '.jpeg');
-        const newFile = new File([formdata.get('file')], newFileName, { type: fileType });
-        formdata.set('file', newFile);
-    } else if (fileExt === 'webp') {
-        const newFileName = fileName.replace(/\.webp$/, '.jpeg');
-        const newFile = new File([formdata.get('file')], newFileName, { type: fileType });
-        formdata.set('file', newFile);
-    }
-
-    // 选择对应的发送接口
+    // 方案B：所有类型统一用 sendDocument，字节级无损（不压缩、不转码、不改名）
     const fileTypeMap = {
-        'image/': { 'url': 'sendPhoto', 'type': 'photo' },
-        'video/': { 'url': 'sendVideo', 'type': 'video' },
-        'audio/': { 'url': 'sendAudio', 'type': 'audio' },
+        'image/': { 'url': 'sendDocument', 'type': 'document' },
+        'video/': { 'url': 'sendDocument', 'type': 'document' },
+        'audio/': { 'url': 'sendDocument', 'type': 'document' },
         'application/pdf': { 'url': 'sendDocument', 'type': 'document' },
     };
 
@@ -499,14 +488,7 @@ async function uploadFileToTelegram(context, fullId, metadata, fileExt, fileName
         ? fileTypeMap[Object.keys(fileTypeMap).find(key => fileType.startsWith(key))]
         : defaultType;
 
-    // GIF ICO 等发送接口特殊处理
-    if (fileType === 'image/gif' || fileType === 'image/webp' || fileExt === 'gif' || fileExt === 'webp') {
-        sendFunction = { 'url': 'sendAnimation', 'type': 'animation' };
-    } else if (fileType === 'image/svg+xml' || fileType === 'image/x-icon') {
-        sendFunction = { 'url': 'sendDocument', 'type': 'document' };
-    }
-
-    // 根据服务端压缩设置处理接口：从参数中获取serverCompress，如果为false，则使用sendDocument接口
+    // 兼容旧参数：serverCompress=false 仍强制 sendDocument（无害）
     if (url.searchParams.get('serverCompress') === 'false') {
         sendFunction = { 'url': 'sendDocument', 'type': 'document' };
     }

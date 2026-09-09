@@ -150,6 +150,8 @@ export async function transformImageRequestViaUrl(context) {
     sourceUrl.searchParams.delete('height');
     sourceUrl.searchParams.delete('fit');
     sourceUrl.searchParams.delete('fallback');
+    // 回源请求由 Cloudflare 发起，无法携带管理员认证；去掉 from=admin 避免回源被 401 拦截
+    sourceUrl.searchParams.delete('from');
 
     const transformOptions = Object.entries({
         ...imageTransform.options,

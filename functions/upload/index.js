@@ -474,7 +474,18 @@ async function uploadFileToTelegram(context, fullId, metadata, fileExt, fileName
         return await uploadLargeFileToTelegram(context, file, fullId, metadata, fileName, fileType, returnLink, tgBotToken, tgChatId, tgChannel);
     }
 
-    // 方案B：所有类型统一用 sendDocument，字节级无损（不压缩、不转码、不改名）
+    // 由于TG会把gif/webp后缀的文件转为视频，需要修改后缀名绕过限制
+    if (fileExt === 'gif') {
+        const newFileName = fileName.replace(/\.gif$/, '.jpeg');
+        const newFile = new File([formdata.get('file')], newFileName, { type: fileType });
+        formdata.set('file', newFile);
+    } else if (fileExt === 'webp') {
+        const newFileName = fileName.replace(/\.webp$/, '.jpeg');
+        const newFile = new File([formdata.get('file')], newFileName, { type: fileType });
+        formdata.set('file', newFile);
+    }
+
+    // 其余类型统一用 sendDocument，字节级无损（不压缩、不转码）
     const fileTypeMap = {
         'image/': { 'url': 'sendDocument', 'type': 'document' },
         'video/': { 'url': 'sendDocument', 'type': 'document' },
@@ -487,6 +498,11 @@ async function uploadFileToTelegram(context, fullId, metadata, fileExt, fileName
     let sendFunction = Object.keys(fileTypeMap).find(key => fileType.startsWith(key))
         ? fileTypeMap[Object.keys(fileTypeMap).find(key => fileType.startsWith(key))]
         : defaultType;
+
+    // GIF/WebP 用 sendAnimation，避免被 Telegram 转成视频
+    if (fileType === 'image/gif' || fileType === 'image/webp' || fileExt === 'gif' || fileExt === 'webp') {
+        sendFunction = { 'url': 'sendAnimation', 'type': 'animation' };
+    }
 
     // 兼容旧参数：serverCompress=false 仍强制 sendDocument（无害）
     if (url.searchParams.get('serverCompress') === 'false') {
